@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1224">
+<meta name="description" content="Открытка-программа для наставницы">
+<title>Спасибо, Учитель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Yeseva+One&display=swap">
+<style>
+/* Layout: one night sky. Stage 1 is a code window to run. Stage 2 is the letter: a big headline,
+   a constellation timeline beside a second code window of wishes, and the sign-off. */
+:root {
+  --night: #0b1224;
+  --night-2: #121c36;
+  --panel: #0f1830;
+  --line: #26345a;
+  --paper: #f3ece2;
+  --muted: #b4bfd8;
+  --faint: #8f9cc0;
+  --gold: #f2c879;
+  --coral: #ff9f8e;
+  --mint: #8fd8c4;
+  --lilac: #b8a6f0;
+  --on-gold: #1a1306;
+  --font-display: "Yeseva One", Georgia, "Times New Roman", serif;
+  --font-body: "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background: var(--night);
+  color: var(--paper);
+  font: 400 1rem/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+h1, h2, h3, p, ol { margin: 0; }
+button { font: inherit; color: inherit; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+
+/* ---------- background layers ---------- */
+.sky {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 55% at 50% 114%, color-mix(in srgb, var(--coral) 28%, transparent), color-mix(in srgb, var(--gold) 8%, transparent) 46%, transparent 72%),
+    radial-gradient(70% 45% at 85% -8%, color-mix(in srgb, var(--lilac) 20%, transparent), transparent 70%);
+  opacity: .35;
+  transition: opacity 3s ease;
+}
+body.launched .sky { opacity: 1; }
+
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+.stage { position: relative; z-index: 2; }
+
+/* ---------- sound toggle ---------- */
+.snd {
+  position: fixed; z-index: 5;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 0 16px 0 14px;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: color-mix(in srgb, var(--night-2) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  color: var(--muted); font-size: .8125rem; font-weight: 500; line-height: 1;
+  cursor: pointer; transition: color .2s, border-color .2s;
+}
+.snd[aria-pressed="true"] { color: var(--paper); border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.eq i { width: 3px; height: 4px; border-radius: 1px; background: currentColor; }
+.snd[aria-pressed="true"] .eq i { animation: eq 1s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -.35s; }
+.eq i:nth-child(3) { animation-delay: -.7s; }
+@keyframes eq { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+
+/* ---------- code window (shared) ---------- */
+.term {
+  width: min(100%, 540px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .75);
+}
+.term-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--night-2) 70%, var(--panel));
+  font: 500 .75rem/1 var(--font-mono);
+  color: var(--faint);
+}
+.dots { display: inline-flex; gap: 6px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+
+.code {
+  padding: 16px 16px 16px 0;
+  font: 400 clamp(.78rem, 3.3vw, .92rem)/1.75 var(--font-mono);
+  overflow-x: auto;
+  counter-reset: ln;
+  white-space: normal;
+}
+.ln {
+  display: block; white-space: pre;
+  counter-increment: ln;
+  animation: lineIn .5s ease both;
+  animation-delay: calc(var(--t0) + var(--i) * var(--dt));
+}
+.ln::before {
+  content: counter(ln);
+  display: inline-block; width: 2.4ch; margin-right: 1.8ch;
+  text-align: right; color: var(--faint); opacity: .6;
+}
+@keyframes lineIn { from { opacity: 0; transform: translateX(-8px); } }
+.c { color: var(--faint); }
+.k { color: var(--lilac); }
+.v { color: var(--paper); }
+.p { color: var(--coral); }
+.s { color: var(--mint); }
+.f { color: var(--gold); }
+
+.cursor {
+  display: inline-block; width: .6ch; height: 1.15em; margin-left: 2px;
+  vertical-align: text-bottom; background: var(--gold);
+  animation: blink 1.05s steps(1) infinite;
+}
+.ran .cursor { display: none; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.out {
+  display: grid; gap: 2px;
+  padding: 0 16px;
+  font: 400 clamp(.78rem, 3.3vw, .9rem)/1.7 var(--font-mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.out:not(:empty) { border-top: 1px dashed var(--line); padding-block: 12px 16px; }
+.out .cmd { color: var(--paper); }
+.out .bar { color: var(--gold); }
+.out .ok { color: var(--mint); }
+
+/* ---------- stage 1: run it ---------- */
+.stage-code {
+  min-height: 100dvh;
+  display: grid; align-content: center; justify-items: center; gap: 26px;
+  padding-block: 72px 48px;
+  transition: opacity .9s ease, transform .9s ease, filter .9s ease;
+}
+.stage-code.leaving { opacity: 0; transform: translateY(-22px) scale(.97); filter: blur(6px); pointer-events: none; }
+.kicker {
+  max-width: 26rem; text-align: center; text-wrap: balance;
+  font-size: clamp(1.05rem, 4vw, 1.3rem); line-height: 1.45; color: var(--muted);
+  animation: rise .9s ease both;
+}
+.term--main { --t0: .35s; --dt: .17s; animation: rise .9s .1s ease both; }
+
+.run {
+  display: inline-flex; align-items: center; gap: 12px;
+  min-height: 54px; padding: 0 30px 0 24px;
+  border: 0; border-radius: 999px;
+  background: var(--gold); color: var(--on-gold);
+  font-size: 1.0625rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 12px 44px -12px color-mix(in srgb, var(--gold) 80%, transparent);
+  transition: transform .2s ease;
+  animation: breathe 2.8s ease-in-out infinite;
+}
+.run:hover:not(:disabled) { transform: translateY(-2px); }
+.run:disabled { opacity: .55; cursor: default; animation: none; }
+.tri { width: 0; height: 0; border-left: 12px solid currentColor; border-top: 7.5px solid transparent; border-bottom: 7.5px solid transparent; }
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 12px 44px -12px color-mix(in srgb, var(--gold) 70%, transparent); }
+  50% { box-shadow: 0 12px 60px -4px color-mix(in srgb, var(--gold) 90%, transparent); }
+}
+
+/* ---------- stage 2: the letter ---------- */
+.letter {
+  width: min(100%, 64rem); margin-inline: auto;
+  padding-block: 88px 72px;
+  display: grid; gap: clamp(48px, 8vw, 88px);
+}
+.hero { display: grid; gap: 22px; max-width: 42rem; }
+.exit {
+  display: inline-flex; align-items: center; gap: 10px; justify-self: start;
+  font: 500 .75rem/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--mint);
+  animation: rise .8s .1s ease both;
+}
+.exit::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+
+.title { font: 400 clamp(2.6rem, 12vw, 5.5rem)/1.04 var(--font-display); letter-spacing: -.01em; }
+.row { display: block; }
+.row.l2 { color: var(--gold); text-shadow: 0 0 .7em color-mix(in srgb, var(--gold) 35%, transparent); }
+.w { display: inline-block; white-space: nowrap; }
+.ch {
+  display: inline-block;
+  animation: chIn .9s cubic-bezier(.2, .9, .25, 1) both;
+  animation-delay: calc(.35s + var(--n) * 38ms);
+}
+@keyframes chIn { from { opacity: 0; transform: translateY(.45em) rotate(5deg); filter: blur(8px); } }
+
+.lead {
+  max-width: 38rem; text-wrap: pretty;
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem); line-height: 1.65;
+  animation: rise .9s 1.5s ease both;
+}
+
+.cols { display: grid; gap: 52px; align-items: start; }
+.cols > * { min-width: 0; }
+@media (min-width: 820px) { .cols { grid-template-columns: 1.15fr .85fr; gap: 64px; } }
+
+.sec-title {
+  font: 400 clamp(1.4rem, 4vw, 1.75rem)/1.2 var(--font-display);
+  margin-bottom: 28px;
+  animation: rise .9s 1.9s ease both;
+}
+
+.stars { --t0: 2.1s; list-style: none; padding: 0 0 0 44px; position: relative; display: grid; gap: 30px; }
+.stars::before {
+  content: ""; position: absolute; left: 11px; top: 14px; bottom: 14px; width: 1px;
+  background: linear-gradient(var(--gold), color-mix(in srgb, var(--gold) 12%, transparent));
+  transform-origin: top;
+  animation: draw 2.6s var(--t0) ease-out both;
+}
+@keyframes draw { from { transform: scaleY(0); } }
+.stars li {
+  position: relative;
+  animation: starIn .8s cubic-bezier(.2, .8, .2, 1) both;
+  animation-delay: calc(var(--t0) + var(--i) * .5s);
+}
+@keyframes starIn { from { opacity: 0; transform: translateX(-10px); } }
+.stars li::before {
+  content: ""; position: absolute; left: -44px; top: 0; width: 24px; height: 24px;
+  background: var(--gold);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: twinkle 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -.7s);
+}
+.stars li::after {
+  content: ""; position: absolute; left: -56px; top: -12px; width: 48px; height: 48px; z-index: -1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 40%, transparent), transparent 68%);
+}
+@keyframes twinkle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.stars h3 { font: 600 1.0625rem/1.4 var(--font-body); }
+.stars p { margin-top: 4px; max-width: 30rem; color: var(--muted); }
+
+.term--wish { --t0: 2.5s; --dt: .2s; width: 100%; animation: rise .9s 2.2s ease both; }
+
+.sign { display: grid; gap: 6px; animation: rise .9s 4.4s ease both; }
+.regards { color: var(--muted); }
+.from { font: 400 clamp(1.7rem, 6.5vw, 2.4rem)/1.1 var(--font-display); color: var(--gold); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; animation: rise .9s 4.8s ease both; }
+.ghost {
+  min-height: 44px; padding: 0 20px;
+  border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  color: var(--paper); font-size: .9375rem; font-weight: 500; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.ghost:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* standalone page resets */
+html { background: var(--night); }
+body { margin: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<button class="snd" id="sndBtn" type="button" aria-pressed="false">
+  <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+  <span id="sndLabel">Музыка выкл</span>
+</button>
+
+<main class="stage stage-code" id="stageCode">
+  <p class="kicker">Эту открытку написали кодом. Запустите её.</p>
+
+  <section class="term term--main" aria-label="Код открытки">
+    <header class="term-bar">
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>thanks.js</span>
+    </header>
+    <div class="code" id="code">
+      <span class="ln" style="--i:0"><span class="c">// открытка для вас</span></span>
+      <span class="ln" style="--i:1"><span class="k">const</span> <span class="v">mentor</span> = {</span>
+      <span class="ln" style="--i:2">  <span class="p">taught</span>: <span class="s">"программированию"</span>,</span>
+      <span class="ln" style="--i:3">  <span class="p">found</span>:  <span class="s">"мои первые проекты"</span>,</span>
+      <span class="ln" style="--i:4">  <span class="p">made</span>:   <span class="s">"меня ментором"</span>,</span>
+      <span class="ln" style="--i:5">  <span class="p">leads</span>:  <span class="s">"людей и команды"</span>,</span>
+      <span class="ln" style="--i:6">  <span class="p">wrote</span>:  <span class="s">"книги"</span>,</span>
+      <span class="ln" style="--i:7">};</span>
+      <span class="ln" style="--i:8"></span>
+      <span class="ln" style="--i:9"><span class="f">thank</span>(<span class="v">mentor</span>);<span class="cursor"></span></span>
+    </div>
+    <div class="out" id="out" aria-live="polite"></div>
+  </section>
+
+  <button class="run" id="runBtn" type="button"><span class="tri" aria-hidden="true"></span>Запустить</button>
+</main>
+
+<article class="stage letter" id="stageLetter" hidden>
+  <header class="hero">
+    <p class="exit">exit code 0</p>
+    <h1 class="title" id="title"></h1>
+    <p class="lead">Вы научили меня программировать и помогали, когда ничего не получалось. Находили проекты, на которых получалось расти, а потом доверили мне быть ментором. Спасибо за ваш ум, терпение и книги, по которым учатся другие. Для меня большая честь учиться у вас.</p>
+  </header>
+
+  <div class="cols">
+    <section aria-labelledby="pathTitle">
+      <h2 class="sec-title" id="pathTitle">Что вы сделали для меня</h2>
+      <ol class="stars">
+        <li style="--i:0"><h3>Научили программировать</h3><p>Объясняли так, что сложное становилось понятным, и помогали, когда ничего не выходило.</p></li>
+        <li style="--i:1"><h3>Находили проекты</h3><p>Подбирали задачи, на которых получалось расти.</p></li>
+        <li style="--i:2"><h3>Доверили менторство</h3><p>Сделали меня ментором и поверили, что я справлюсь.</p></li>
+        <li style="--i:3"><h3>Ведёте за собой</h3><p>Руководите так, что за вами хочется идти.</p></li>
+        <li style="--i:4"><h3>Пишете книги</h3><p>Делитесь знаниями с теми, кого вы даже не знаете лично.</p></li>
+      </ol>
+    </section>
+
+    <section class="term term--wish" aria-label="Пожелания">
+      <header class="term-bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>wishes.js</span>
+      </header>
+      <div class="code">
+        <span class="ln" style="--i:0"><span class="c">// мои пожелания</span></span>
+        <span class="ln" style="--i:1"><span class="k">return</span> [</span>
+        <span class="ln" style="--i:2">  <span class="s">"здоровья"</span>,</span>
+        <span class="ln" style="--i:3">  <span class="s">"новых идей"</span>,</span>
+        <span class="ln" style="--i:4">  <span class="s">"благодарных учеников"</span>,</span>
+        <span class="ln" style="--i:5">  <span class="s">"книг, которые перечитывают"</span>,</span>
+        <span class="ln" style="--i:6">  <span class="s">"тепла каждый день"</span>,</span>
+        <span class="ln" style="--i:7">];</span>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="sign">
+      <p class="regards">С благодарностью и уважением,</p>
+      <p class="from" id="from"></p>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="againBtn" type="button">Ещё салют</button>
+      <button class="ghost" id="replayBtn" type="button">Запустить заново</button>
+    </div>
+  </footer>
+</article>
+
+<script>
+(() => {
+  "use strict";
+
+  // Как обращаться к учительнице и как подписаться.
+  const CONFIG = { teacher: "Учитель", sender: "Ваш ученик" };
+
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const COLORS = ["--gold", "--coral", "--mint", "--lilac", "--paper"].map(tok);
+  const PAPER = tok("--paper"), MUTED = tok("--muted"), MONO = tok("--font-mono");
+
+  const stageCode = $("stageCode"), stageLetter = $("stageLetter");
+  const runBtn = $("runBtn"), sndBtn = $("sndBtn"), sndLabel = $("sndLabel");
+
+  /* ---------- headline, one letter at a time ---------- */
+  (function buildTitle() {
+    const h = $("title");
+    h.setAttribute("aria-label", "Спасибо, " + CONFIG.teacher + "!");
+    let n = 0;
+    [["Спасибо,", "l1"], [CONFIG.teacher + "!", "l2"]].forEach(([text, cls]) => {
+      const row = document.createElement("span");
+      row.className = "row " + cls;
+      row.setAttribute("aria-hidden", "true");
+      text.split(" ").forEach((word, wi, all) => {
+        const w = document.createElement("span");
+        w.className = "w";
+        for (const ch of word) {
+          const s = document.createElement("span");
+          s.className = "ch";
+          s.textContent = ch;
+          s.style.setProperty("--n", n++);
+          w.appendChild(s);
+        }
+        row.appendChild(w);
+        if (wi < all.length - 1) row.appendChild(document.createTextNode(" "));
+      });
+      h.appendChild(row);
+    });
+    $("from").textContent = CONFIG.sender;
+  })();
+
+  /* ---------- music: a soft generative piano loop ---------- */
+  const Sound = (() => {
+    let ac = null, master, dry, send, timer = null, nextT = 0, step = 0, noiseBuf = null;
+    let playing = false, lastPop = 0;
+    const BPM = 74, EIGHTH = 60 / BPM / 2;
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const N = null;
+    const CHORDS = [
+      [48, [60, 64, 67, 72]],
+      [45, [57, 60, 64, 69]],
+      [41, [57, 60, 65, 69]],
+      [43, [55, 59, 62, 67]],
+    ];
+    const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
+    const MEL = [
+      [76, N, N, N, 74, N, 72, N],
+      [N, N, 69, N, 72, N, 76, N],
+      [69, N, 72, N, 77, N, 76, N],
+      [74, N, N, N, 71, N, 67, N],
+      [79, N, 76, N, 72, N, 76, N],
+      [81, N, 76, N, 72, N, 69, N],
+      [72, N, 77, N, 81, N, 79, N],
+      [74, N, 71, N, 74, N, 67, N],
+    ];
+
+    function impulse(sec) {
+      const len = Math.floor(ac.sampleRate * sec);
+      const buf = ac.createBuffer(2, len, ac.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = buf.getChannelData(c);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+      }
+      return buf;
+    }
+
+    function init() {
+      if (ac) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      ac = new Ctx();
+      master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+      dry = ac.createGain(); dry.gain.value = .9; dry.connect(master);
+      const conv = ac.createConvolver(); conv.buffer = impulse(2.8);
+      send = ac.createGain(); send.gain.value = .55;
+      const wet = ac.createGain(); wet.gain.value = .7;
+      send.connect(conv); conv.connect(wet); wet.connect(master);
+    }
+
+    function note(m, t, dur, vol, tone) {
+      const f = hz(m);
+      const env = ac.createGain();
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = Math.min(f * 5, 4200); lp.Q.value = .4;
+      const o1 = ac.createOscillator(); o1.type = tone || "triangle"; o1.frequency.value = f;
+      const o2 = ac.createOscillator(); o2.type = "sine"; o2.frequency.value = f * 2;
+      const g2 = ac.createGain(); g2.gain.value = .3;
+      o1.connect(env); o2.connect(g2); g2.connect(env);
+      env.gain.setValueAtTime(.0001, t);
+      env.gain.exponentialRampToValueAtTime(vol, t + .01);
+      env.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      env.connect(lp); lp.connect(dry); lp.connect(send);
+      o1.start(t); o2.start(t);
+      o1.stop(t + dur + .05); o2.stop(t + dur + .05);
+    }
+
+    function pad(m, t, dur, vol) {
+      const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = hz(m);
+      const env = ac.createGain();
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(vol, t + .8);
+      env.gain.linearRampToValueAtTime(0, t + dur);
+      o.connect(env); env.connect(dry); env.connect(send);
+      o.start(t); o.stop(t + dur + .05);
+    }
+
+    function tick() {
+      if (!ac || ac.state !== "running") return;
+      if (nextT < ac.currentTime - .2) nextT = ac.currentTime + .05;
+      while (nextT < ac.currentTime + .35) {
+        const bar = Math.floor(step / 8) % 8, pos = step % 8;
+        const chord = CHORDS[bar % 4], bass = chord[0], tones = chord[1];
+        const t = nextT + (Math.random() - .5) * .012;
+        if (pos === 0) {
+          note(bass, t, 3, .2, "sine");
+          tones.slice(0, 3).forEach((m) => pad(m, t, 3.6, .03));
+        }
+        if (pos === 4) note(bass + 7, t, 1.4, .07, "sine");
+        note(tones[ARP[pos]], t, 1.5, .06 + Math.random() * .015);
+        const mm = MEL[bar][pos];
+        if (mm) note(mm, t, 2, .12);
+        nextT += EIGHTH; step++;
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!ac) return;
+      if (document.hidden) ac.suspend();
+      else if (playing) { ac.resume(); nextT = ac.currentTime + .1; }
+    });
+
+    return {
+      isOn: () => playing,
+      start() {
+        init();
+        if (!ac) return false;
+        ac.resume();
+        playing = true;
+        nextT = ac.currentTime + .15;
+        clearInterval(timer);
+        timer = setInterval(tick, 60);
+        const t = ac.currentTime;
+        master.gain.cancelScheduledValues(t);
+        master.gain.setValueAtTime(master.gain.value, t);
+        master.gain.linearRampToValueAtTime(.85, t + 2);
+        return true;
+      },
+      stop() {
+        if (!ac) return;
+        playing = false;
+        const t = ac.currentTime;
+        master.gain.cancelScheduledValues(t);
+        master.gain.setValueAtTime(master.gain.value, t);
+        master.gain.linearRampToValueAtTime(0, t + .5);
+        setTimeout(() => { if (!playing) { clearInterval(timer); ac.suspend(); } }, 650);
+      },
+      chime() {
+        if (!playing) return;
+        const t = ac.currentTime + .02;
+        [84, 88, 91, 96].forEach((m, i) => note(m, t + i * .11, 2.2, .09, "sine"));
+      },
+      pop() {
+        if (!playing) return;
+        const now = performance.now();
+        if (now - lastPop < 90) return;
+        lastPop = now;
+        if (!noiseBuf) {
+          noiseBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * .4), ac.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+        }
+        const s = ac.createBufferSource(); s.buffer = noiseBuf;
+        const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900 + Math.random() * 900; bp.Q.value = .8;
+        const g = ac.createGain(); g.gain.value = .22;
+        s.connect(bp); bp.connect(g); g.connect(dry); g.connect(send);
+        s.start();
+        note(96 + Math.floor(Math.random() * 5), ac.currentTime, 1.2, .04, "sine");
+      },
+    };
+  })();
+
+  let userMuted = false;
+  function setSndBtn(on) {
+    sndBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    sndLabel.textContent = on ? "Музыка вкл" : "Музыка выкл";
+  }
+  sndBtn.addEventListener("click", () => {
+    if (Sound.isOn()) { Sound.stop(); userMuted = true; setSndBtn(false); }
+    else if (Sound.start()) { userMuted = false; setSndBtn(true); }
+  });
+
+  /* ---------- sky: stars, drifting code glyphs, fireworks ---------- */
+  const cv = $("fx"), g = cv.getContext("2d");
+  let W = 0, H = 0, stars = [], glyphs = [], parts = [];
+  const GLYPHS = ["{", "}", "</>", "=>", "()", "[]", "0", "1", ";", "//", "&&", "#"];
+
+  function size() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const nw = window.innerWidth, nh = window.innerHeight;
+    const fresh = !W || Math.abs(nw - W) > 1 || Math.abs(nh - H) > 150;
+    W = nw; H = nh;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!fresh) return;
+    const ns = Math.max(60, Math.min(220, Math.round(W * H / 9000)));
+    stars = Array.from({ length: ns }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: .5 + Math.random() * .9, ph: Math.random() * 6.28,
+      sp: .6 + Math.random() * 1.4, a: .35 + Math.random() * .55,
+    }));
+    glyphs = Array.from({ length: W < 600 ? 9 : 16 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      v: 8 + Math.random() * 18, s: 13 + Math.random() * 10,
+      a: .07 + Math.random() * .1, t: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+    }));
+  }
+  size();
+  window.addEventListener("resize", size);
+
+  function burst(x, y, n) {
+    if (reduced) return;
+    const a = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const b = COLORS[Math.floor(Math.random() * COLORS.length)];
+    for (let i = 0; i < n && parts.length < 1200; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 60 + Math.random() * 190;
+      const life = .9 + Math.random() * .9;
+      parts.push({
+        x, y, px: x, py: y,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+        life, max: life, w: 1.2 + Math.random() * 1.6, c: i % 2 ? a : b,
+      });
+    }
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now - last) / 1000);
+    last = now;
+    g.clearRect(0, 0, W, H);
+    g.globalCompositeOperation = "source-over";
+
+    g.fillStyle = PAPER;
+    for (const s of stars) {
+      const tw = reduced ? 1 : .55 + .45 * Math.sin(now / 1000 * s.sp + s.ph);
+      g.globalAlpha = s.a * tw;
+      g.beginPath(); g.arc(s.x, s.y, s.r, 0, 6.2832); g.fill();
+    }
+
+    g.fillStyle = MUTED; g.textBaseline = "middle";
+    for (const q of glyphs) {
+      if (!reduced) {
+        q.y -= q.v * dt;
+        if (q.y < -30) { q.y = H + 30; q.x = Math.random() * W; }
+      }
+      g.globalAlpha = q.a;
+      g.font = q.s + "px " + MONO;
+      g.fillText(q.t, q.x, q.y);
+    }
+
+    if (parts.length) {
+      g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i];
+        p.life -= dt;
+        if (p.life <= 0) { parts.splice(i, 1); continue; }
+        p.px = p.x; p.py = p.y;
+        const f = Math.pow(.32, dt);
+        p.vx *= f; p.vy = p.vy * f + 150 * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const k = p.life / p.max;
+        g.globalAlpha = Math.min(1, k * 1.4);
+        g.strokeStyle = p.c; g.lineWidth = p.w * (.5 + k * .5);
+        g.beginPath(); g.moveTo(p.px, p.py); g.lineTo(p.x, p.y); g.stroke();
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+    g.globalAlpha = 1;
+  }
+  requestAnimationFrame(frame);
+
+  function salvo() {
+    [[.5, .42, 110], [.25, .3, 80], [.75, .28, 80], [.38, .55, 70], [.68, .5, 70], [.5, .25, 90]]
+      .forEach(([fx, fy, n], i) => setTimeout(() => { burst(W * fx, H * fy, n); Sound.pop(); }, 120 + i * 260));
+  }
+
+  let ambient = null;
+  function stopAmbient() { clearTimeout(ambient); }
+  function startAmbient() {
+    stopAmbient();
+    const loop = () => {
+      if (!document.hidden) {
+        burst(W * (.15 + Math.random() * .7), H * (.12 + Math.random() * .4), 46);
+        Sound.pop();
+      }
+      ambient = setTimeout(loop, 5200 + Math.random() * 3800);
+    };
+    ambient = setTimeout(loop, 6500);
+  }
+
+  document.addEventListener("pointerdown", (e) => {
+    if (stageLetter.hidden || e.target.closest("button, a")) return;
+    burst(e.clientX, e.clientY, 46);
+    Sound.pop();
+  });
+
+  /* ---------- run the program ---------- */
+  let running = false;
+
+  async function printOut() {
+    const out = $("out");
+    const add = (cls) => { const d = document.createElement("div"); d.className = cls; out.appendChild(d); return d; };
+    const type = async (el, text, ms) => {
+      if (reduced) { el.textContent = text; return; }
+      for (const ch of text) { el.textContent += ch; await sleep(ms); }
+    };
+    await type(add("cmd"), "$ node thanks.js", 22);
+    await sleep(reduced ? 0 : 220);
+    await type(add("dim"), "Компиляция благодарности…", 16);
+    const bar = add("bar");
+    const steps = 10;
+    for (let i = 0; i <= steps; i++) {
+      bar.textContent = "[" + "█".repeat(i) + "░".repeat(steps - i) + "] " + i * 10 + "%";
+      if (!reduced) await sleep(90);
+    }
+    await sleep(reduced ? 0 : 220);
+    await type(add("ok"), "Готово: 0 ошибок, 1 огромное спасибо", 18);
+    await sleep(reduced ? 0 : 500);
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    runBtn.disabled = true;
+    if (!userMuted && !Sound.isOn() && Sound.start()) setSndBtn(true);
+    $("code").classList.add("ran");
+    await printOut();
+    Sound.chime();
+    salvo();
+    document.body.classList.add("launched");
+    stageCode.classList.add("leaving");
+    await sleep(reduced ? 0 : 950);
+    stageCode.hidden = true;
+    stageLetter.hidden = false;
+    window.scrollTo(0, 0);
+    startAmbient();
+  }
+
+  function reset() {
+    stopAmbient();
+    document.body.classList.remove("launched");
+    stageLetter.hidden = true;
+    stageCode.classList.remove("leaving");
+    $("code").classList.remove("ran");
+    $("out").textContent = "";
+    stageCode.hidden = false;
+    runBtn.disabled = false;
+    running = false;
+    window.scrollTo(0, 0);
+  }
+
+  runBtn.addEventListener("click", run);
+  $("againBtn").addEventListener("click", () => { salvo(); });
+  $("replayBtn").addEventListener("click", reset);
+})();
+</script>
+
+</body>
+</html>
